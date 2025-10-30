@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Inspección RER Autónoma</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <h1>Formulario de Inspección RER Autónoma</h1>
+
+  <div>
+    <label for="estado-usuario">Estado del Usuario:</label>
+    <select id="estado-usuario">
+      <option value="presente">Usuario Presente</option>
+      <option value="ausente">Usuario Ausente</option>
+      <option value="inexistente">Usuario Inexistente</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="codigo-suministro">Código de Suministro:</label>
+    <input type="text" id="codigo-suministro" placeholder="Ej. 00012345-A" required />
+  </div>
+
+  <div>
+    <label for="tipo-usuario">Tipo de Usuario:</label>
+    <select id="tipo-usuario">
+      <option value="titular">Titular</option>
+      <option value="representante">Representante</option>
+    </select>
+    <button type="button" id="buscar-datos">Buscar Datos</button>
+  </div>
+
+  <form id="inspection-form"></form>
+
+  <h2>Firma del Usuario</h2>
+  <canvas id="firma-canvas" width="300" height="100" style="border:1px solid #000"></canvas>
+  <div>
+    <button type="button" id="clear-firma">Limpiar Firma</button>
+  </div>
+
+  <h2>Fotos georreferenciadas</h2>
+  <video id="video" autoplay></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+  <div>
+    <button type="button" id="start-btn">Activar Cámara</button>
+    <button type="button" id="capture-btn" disabled>Tomar Foto</button>
+    <button type="button" id="reset-btn">Limpiar Fotos</button>
+  </div>
+  <div id="photo-thumbnails"></div>
+
+  <div style="margin-top: 20px;">
+    <button type="button" id="pdf-btn" disabled>Generar PDF</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+  window.onload = async () => {
+    const response = await fetch("formulario.json");
+    const formSections = await response.json();
+    const form = document.getElementById("inspection-form");
+
+    formSections.forEach((section, idx) => {
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("accordion");
+
+      const header = document.createElement("button");
+      header.className = "accordion-toggle";
+      header.type = "button";
+      header.innerText = `${idx + 1}. ${section.titulo}`;
+      header.onclick = () => wrapper.classList.toggle("active");
+
+      const content = document.createElement("div");
+      content.className = "accordion-content";
+
+      section.campos.forEach(campo => {
+        const label = document.createElement("label");
+        label.innerText = campo.etiqueta;
+
+        let input;
+        if (campo.tipo === "text" || campo.tipo === "number" || campo.tipo === "date") {
+          input = document.createElement("input");
+          input.type = campo.tipo;
+        } else if (campo.tipo === "textarea") {
+          input = document.createElement("textarea");
+        } else if (campo.tipo === "select") {
+          input = document.createElement("select");
+          campo.opciones.forEach(opt => {
+            const option = document.createElement("option");
+            option.value = opt;
+            option.text = opt;
+            input.appendChild(option);
+          });
+        }
+
+        if (input) {
+          input.id = campo.id;
+          input.name = campo.id;
+          input.required = true;
+        }
+
+        content.appendChild(label);
+        content.appendChild(input);
+      });
+
+      wrapper.appendChild(header);
+      wrapper.appendChild(content);
+      form.appendChild(wrapper);
+    });
+  };
+</script>
+
+
+<div style="margin-top: 30px;">
+  <button type="button" id="ver-historial">Ver suministros generados</button>
+  <ul id="historial-lista" style="margin-top: 10px;"></ul>
+</div>
+
+</body>
+</html>
