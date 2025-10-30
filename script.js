@@ -1,4 +1,3 @@
-
 let video = document.getElementById("video");
 let canvas = document.getElementById("canvas");
 let captureBtn = document.getElementById("capture-btn");
@@ -13,11 +12,14 @@ let recordedVideo = null;
 let mediaRecorder;
 let recordedBlobs = [];
 
+// --- Firma ---
 const firmaCanvas = document.getElementById("firma-canvas");
 const firmaCtx = firmaCanvas.getContext("2d");
+firmaCtx.strokeStyle = "#000";
+firmaCtx.lineWidth = 2;
+firmaCtx.lineCap = "round";
 let drawing = false;
 
-// ---------------- FIRMA DIGITAL ----------------
 firmaCanvas.addEventListener("mousedown", e => {
   drawing = true;
   firmaCtx.beginPath();
@@ -35,45 +37,68 @@ document.getElementById("clear-firma").onclick = () => {
   firmaCtx.clearRect(0, 0, firmaCanvas.width, firmaCanvas.height);
 };
 
-// ---------------- GPS ----------------
+// --- GPS ---
 navigator.geolocation.getCurrentPosition(
   (pos) => currentPosition = pos.coords,
   () => alert("No se pudo obtener ubicación")
 );
 
-// ---------------- CÁMARA + VIDEO ----------------
+// --- Cámara (trasera + video opcional) ---
 startBtn.onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-  captureBtn.disabled = false;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const backCamera = devices.find(d => d.kind === "videoinput" && d.label.toLowerCase().includes("back"));
 
-  // Botón de grabar video
-  const recordBtn = document.createElement("button");
-  recordBtn.textContent = "Grabar Video";
-  recordBtn.onclick = () => {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-      recordBtn.textContent = "Grabar Video";
-    } else {
-      recordedBlobs = [];
-      mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
-      mediaRecorder.ondataavailable = e => e.data.size > 0 && recordedBlobs.push(e.data);
-      mediaRecorder.onstop = () => {
-        recordedVideo = new Blob(recordedBlobs, { type: "video/webm" });
-        alert("Video grabado correctamente.");
-      };
-      mediaRecorder.start();
-      recordBtn.textContent = "Detener Grabación";
-    }
-  };
-  resetBtn.after(recordBtn);
+    const constraints = backCamera
+      ? { video: { deviceId: { exact: backCamera.deviceId } }, audio: false }
+      : { video: { facingMode: { exact: "environment" } }, audio: false };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream;
+    captureBtn.disabled = false;
+
+    const recordBtn = document.createElement("button");
+    recordBtn.textContent = "Grabar Video";
+    recordBtn.onclick = () => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        recordBtn.textContent = "Grabar Video";
+      } else {
+        recordedBlobs = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+        mediaRecorder.ondataavailable = e => e.data.size > 0 && recordedBlobs.push(e.data);
+        mediaRecorder.onstop = () => {
+          recordedVideo = new Blob(recordedBlobs, { type: "video/webm" });
+          alert("Video grabado correctamente.");
+        };
+        mediaRecorder.start();
+        recordBtn.textContent = "Detener Grabación";
+      }
+    };
+    resetBtn.after(recordBtn);
+  } catch (err) {
+    alert("Error accediendo a la cámara: " + err.message);
+  }
 };
 
-// ---------------- FOTO ----------------
+// --- Captura de foto ---
 captureBtn.onclick = () => {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  canvas.getContext("2d").drawImage(video, 0, 0);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0);
+
+  const now = new Date();
+  const timestamp = now.toLocaleString();
+  const coords = currentPosition
+    ? `${currentPosition.latitude.toFixed(6)}, ${currentPosition.longitude.toFixed(6)}`
+    : "Ubicación no disponible";
+
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText(timestamp, 10, canvas.height - 40);
+  ctx.fillText(coords, 10, canvas.height - 15);
+
   const imgData = canvas.toDataURL("image/jpeg");
   photos.push(imgData);
   const thumb = document.createElement("img");
@@ -82,7 +107,7 @@ captureBtn.onclick = () => {
   pdfBtn.disabled = false;
 };
 
-// ---------------- RESET ----------------
+// --- Reset ---
 resetBtn.onclick = () => {
   thumbnailsDiv.innerHTML = "";
   photos = [];
@@ -91,7 +116,7 @@ resetBtn.onclick = () => {
   firmaCtx.clearRect(0, 0, firmaCanvas.width, firmaCanvas.height);
 };
 
-// ---------------- BÚSQUEDA DE USUARIO ----------------
+// --- Buscar datos en JSON ---
 document.getElementById("buscar-datos").onclick = async () => {
   const tipoUsuario = document.getElementById("tipo-usuario").value;
   const codigo = document.getElementById("codigo-suministro").value.trim().toUpperCase();
@@ -113,53 +138,32 @@ document.getElementById("buscar-datos").onclick = async () => {
   document.getElementById("distrito").value = user.distrito || "";
   document.getElementById("localidad").value = user.localidad || "";
 
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      document.getElementById("utm_este").value = Math.round((pos.coords.longitude + 180) * 1000);
-      document.getElementById("utm_norte").value = Math.round((pos.coords.latitude + 90) * 1000);
-      document.getElementById("utm_zona").value = "18";
-    });
-  }
-
   document.getElementById("pdf-btn").disabled = false;
 };
 
-// ---------------- EXCEL + PDF + ZIP ----------------
+// --- Generar Excel ---
 function generarExcel(campos) {
   const key = "historial_excel";
   let registros = JSON.parse(localStorage.getItem(key)) || [];
-
   const fila = {
     estado_usuario: document.getElementById("estado-usuario")?.value || "",
     tipo_usuario: document.getElementById("tipo-usuario")?.value || "",
     ...campos,
     timestamp: new Date().toLocaleString()
   };
-
   registros.push(fila);
   localStorage.setItem(key, JSON.stringify(registros));
 
-  const columnas = [
-    "estado_usuario", "tipo_usuario", "nombres_apellidos", "dni", "codigo_usuario", "fecha_inspeccion",
-    "departamento", "provincia", "distrito", "localidad",
-    "utm_este", "utm_norte", "utm_zona",
-    "telefono_usuario", "telefono_localidad",
-    "estado_panel", "anotaciones_inspector",
-    "nombre_inspector", "dni_inspector", "timestamp"
-  ];
-
+  const columnas = Object.keys(fila);
   const data = [columnas.map(h => h.toUpperCase())];
-  registros.forEach(reg => {
-    const fila = columnas.map(k => reg[k] || "");
-    data.push(fila);
-  });
-
+  registros.forEach(reg => data.push(columnas.map(k => reg[k] || "")));
   const ws = XLSX.utils.aoa_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Formularios RER");
   return XLSX.write(wb, { bookType: "xlsx", type: "array" });
 }
 
+// --- Generar ZIP (PDF + Excel + fotos + video) ---
 pdfBtn.onclick = async () => {
   const { jsPDF } = window.jspdf;
   const zip = new JSZip();
@@ -199,56 +203,23 @@ pdfBtn.onclick = async () => {
   doc.text("Firma del Usuario:", 10, y);
   doc.addImage(firmaImg, "PNG", 10, y + 5, 80, 40);
 
-  for (let i = 0; i < photos.length; i++) {
+  photos.forEach((photo, i) => {
     doc.addPage();
     doc.text(`Foto ${i + 1}`, 10, 10);
-    doc.addImage(photos[i], "JPEG", 10, 20, 180, 135);
-    const base64 = photos[i].split(',')[1];
-    zip.file(`${suministro}-${i + 1}.jpeg`, base64, { base64: true });
-  }
-
-  if (recordedVideo) {
-    zip.file(`${suministro}-${photos.length + 1}.webm`, recordedVideo);
-  }
-
-  const pdfBlob = doc.output("blob");
-  zip.file(`${suministro}-reporte.pdf`, pdfBlob);
-
-  const excelData = generarExcel(campos);
-  zip.file(`${suministro}-datos.xlsx`, excelData);
-
-  zip.generateAsync({ type: "blob" }).then(content => {
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(content);
-    link.download = `${suministro}.zip`;
-    link.click();
-    guardarEnHistorial(suministro);
-    alert(`El archivo ${suministro}.zip fue descargado automáticamente en tu carpeta de Descargas.`);
+    doc.addImage(photo, "JPEG", 10, 20, 180, 135);
+    zip.file(`${suministro}-${i + 1}.jpeg`, photo.split(',')[1], { base64: true });
   });
-};
 
-// ---------------- HISTORIAL LOCAL ----------------
-function guardarEnHistorial(suministro) {
-  const key = "historial_suministros";
-  let lista = JSON.parse(localStorage.getItem(key)) || [];
-  if (!lista.includes(suministro)) {
-    lista.push(suministro);
-    localStorage.setItem(key, JSON.stringify(lista));
-  }
-}
+  if (recordedVideo) zip.file(`${suministro}-video.webm`, recordedVideo);
 
-document.getElementById("ver-historial").onclick = () => {
-  const key = "historial_suministros";
-  const lista = JSON.parse(localStorage.getItem(key)) || [];
-  const ul = document.getElementById("historial-lista");
-  ul.innerHTML = "";
-  if (lista.length === 0) {
-    ul.innerHTML = "<li>No se han generado suministros aún.</li>";
-  } else {
-    lista.forEach(s => {
-      const li = document.createElement("li");
-      li.textContent = s;
-      ul.appendChild(li);
-    });
-  }
+  zip.file(`${suministro}-reporte.pdf`, doc.output("blob"));
+  zip.file(`${suministro}-datos.xlsx`, generarExcel(campos));
+
+  const content = await zip.generateAsync({ type: "blob" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(content);
+  link.download = `${suministro}.zip`;
+  link.click();
+
+  alert(`Archivo ${suministro}.zip generado correctamente.`);
 };
