@@ -1,12 +1,15 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Inspección RER Autónoma</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link rel="stylesheet" href="style.css">
+
+  <!-- Librerías -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -40,7 +43,7 @@
   <form id="inspection-form"></form>
 
   <h2>Firma del Usuario</h2>
-  <canvas id="firma-canvas" width="300" height="100" style="border:1px solid #000"></canvas>
+  <canvas id="firma-canvas" width="300" height="150" style="border:1px solid #000; touch-action:none;"></canvas>
   <div>
     <button type="button" id="clear-firma">Limpiar Firma</button>
   </div>
@@ -60,8 +63,16 @@
   </div>
 </div>
 
+<!-- Historial -->
+<div style="margin-top: 30px;">
+  <button type="button" id="ver-historial">Ver suministros generados</button>
+  <ul id="historial-lista" style="margin-top: 10px;"></ul>
+</div>
+
 <script src="script.js"></script>
+
 <script>
+  // Cargar formulario JSON dinámicamente
   window.onload = async () => {
     const response = await fetch("formulario.json");
     const formSections = await response.json();
@@ -85,7 +96,7 @@
         label.innerText = campo.etiqueta;
 
         let input;
-        if (campo.tipo === "text" || campo.tipo === "number" || campo.tipo === "date") {
+        if (["text", "number", "date"].includes(campo.tipo)) {
           input = document.createElement("input");
           input.type = campo.tipo;
         } else if (campo.tipo === "textarea") {
@@ -116,12 +127,6 @@
     });
   };
 </script>
-
-
-<div style="margin-top: 30px;">
-  <button type="button" id="ver-historial">Ver suministros generados</button>
-  <ul id="historial-lista" style="margin-top: 10px;"></ul>
-</div>
 
 </body>
 </html>
