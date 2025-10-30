@@ -12,63 +12,79 @@ let recordedVideo = null;
 let mediaRecorder;
 let recordedBlobs = [];
 
-// --- FIRMA DIGITAL ---
+// === FIRMA DIGITAL UNIVERSAL (PC + Android + iPhone) ===
 const firmaCanvas = document.getElementById("firma-canvas");
 const firmaCtx = firmaCanvas.getContext("2d");
+
 firmaCtx.strokeStyle = "#000";
 firmaCtx.lineWidth = 2;
 firmaCtx.lineCap = "round";
-let drawing = false;
 
-firmaCanvas.addEventListener("mousedown", e => {
-  drawing = true;
-  firmaCtx.beginPath();
-  firmaCtx.moveTo(e.offsetX, e.offsetY);
-});
-firmaCanvas.addEventListener("mousemove", e => {
-  if (drawing) {
-    firmaCtx.lineTo(e.offsetX, e.offsetY);
-    firmaCtx.stroke();
+let dibujando = false;
+
+function getCoords(e) {
+  const rect = firmaCanvas.getBoundingClientRect();
+  if (e.touches) {
+    const touch = e.touches[0];
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    };
+  } else {
+    return {
+      x: e.offsetX,
+      y: e.offsetY
+    };
   }
-});
-firmaCanvas.addEventListener("mouseup", () => drawing = false);
-firmaCanvas.addEventListener("mouseleave", () => drawing = false);
+}
 
-// --- Firma táctil (móviles) ---
-firmaCanvas.addEventListener("touchstart", e => {
+function iniciarDibujo(e) {
   e.preventDefault();
-  drawing = true;
-  const touch = e.touches[0];
-  const rect = firmaCanvas.getBoundingClientRect();
+  dibujando = true;
+  const { x, y } = getCoords(e);
   firmaCtx.beginPath();
-  firmaCtx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
-});
-firmaCanvas.addEventListener("touchmove", e => {
+  firmaCtx.moveTo(x, y);
+}
+
+function trazar(e) {
+  if (!dibujando) return;
   e.preventDefault();
-  if (!drawing) return;
-  const touch = e.touches[0];
-  const rect = firmaCanvas.getBoundingClientRect();
-  firmaCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+  const { x, y } = getCoords(e);
+  firmaCtx.lineTo(x, y);
   firmaCtx.stroke();
-});
-firmaCanvas.addEventListener("touchend", () => (drawing = false));
+}
+
+function detenerDibujo(e) {
+  e.preventDefault();
+  dibujando = false;
+}
+
+firmaCanvas.addEventListener("mousedown", iniciarDibujo, { passive: false });
+firmaCanvas.addEventListener("mousemove", trazar, { passive: false });
+firmaCanvas.addEventListener("mouseup", detenerDibujo, { passive: false });
+firmaCanvas.addEventListener("mouseleave", detenerDibujo, { passive: false });
+
+firmaCanvas.addEventListener("touchstart", iniciarDibujo, { passive: false });
+firmaCanvas.addEventListener("touchmove", trazar, { passive: false });
+firmaCanvas.addEventListener("touchend", detenerDibujo, { passive: false });
+firmaCanvas.addEventListener("touchcancel", detenerDibujo, { passive: false });
 
 document.getElementById("clear-firma").onclick = () => {
   firmaCtx.clearRect(0, 0, firmaCanvas.width, firmaCanvas.height);
 };
 
-// --- GPS ---
+// === GPS ===
 navigator.geolocation.getCurrentPosition(
   pos => (currentPosition = pos.coords),
-  () => alert("⚠️ No se pudo obtener la ubicación. Activa el GPS o permisos de ubicación.")
+  () => alert("⚠️ No se pudo obtener la ubicación. Activa el GPS o los permisos de ubicación.")
 );
 
-// --- CÁMARA (versión universal Android + iPhone) ---
+// === CÁMARA (versión universal Android + iPhone) ===
 startBtn.onclick = async () => {
   try {
     const constraints = {
       video: {
-        facingMode: { ideal: "environment" }, // trasera si está disponible
+        facingMode: { ideal: "environment" },
         width: { ideal: 1280 },
         height: { ideal: 720 }
       },
@@ -80,7 +96,6 @@ startBtn.onclick = async () => {
     await video.play();
     captureBtn.disabled = false;
 
-    // Botón de grabación opcional
     const recordBtn = document.createElement("button");
     recordBtn.textContent = "🎥 Grabar Video";
     recordBtn.onclick = () => {
@@ -109,16 +124,16 @@ startBtn.onclick = async () => {
     if (err.name === "NotAllowedError") {
       alert("🚫 No se ha permitido el uso de la cámara. Actívalo en Configuración > Permisos > Cámara.");
     } else if (err.name === "NotFoundError") {
-      alert("❌ No se encontró una cámara disponible en este dispositivo.");
+      alert("❌ No se encontró una cámara disponible.");
     } else if (err.name === "SecurityError") {
-      alert("⚠️ El navegador bloqueó la cámara. Asegúrate de usar HTTPS (ya lo tienes) y recarga la página.");
+      alert("⚠️ El navegador bloqueó la cámara. Asegúrate de usar HTTPS y recarga la página.");
     } else {
       alert("Error accediendo a la cámara: " + err.message);
     }
   }
 };
 
-// --- CAPTURAR FOTO ---
+// === CAPTURAR FOTO ===
 captureBtn.onclick = () => {
   const ctx = canvas.getContext("2d");
   canvas.width = video.videoWidth;
@@ -146,7 +161,7 @@ captureBtn.onclick = () => {
   pdfBtn.disabled = false;
 };
 
-// --- LIMPIAR ---
+// === LIMPIAR ===
 resetBtn.onclick = () => {
   thumbnailsDiv.innerHTML = "";
   photos = [];
@@ -155,7 +170,7 @@ resetBtn.onclick = () => {
   firmaCtx.clearRect(0, 0, firmaCanvas.width, firmaCanvas.height);
 };
 
-// --- BUSCAR DATOS ---
+// === BUSCAR DATOS ===
 document.getElementById("buscar-datos").onclick = async () => {
   const tipoUsuario = document.getElementById("tipo-usuario").value;
   const codigo = document.getElementById("codigo-suministro").value.trim().toUpperCase();
@@ -184,7 +199,7 @@ document.getElementById("buscar-datos").onclick = async () => {
   }
 };
 
-// --- GENERAR EXCEL ---
+// === GENERAR EXCEL ===
 function generarExcel(campos) {
   const key = "historial_excel";
   let registros = JSON.parse(localStorage.getItem(key)) || [];
@@ -209,7 +224,7 @@ function generarExcel(campos) {
   return XLSX.write(wb, { bookType: "xlsx", type: "array" });
 }
 
-// --- GENERAR ZIP (PDF + EXCEL + FOTOS + VIDEO) ---
+// === GENERAR ZIP (PDF + EXCEL + FOTOS + VIDEO) ===
 pdfBtn.onclick = async () => {
   try {
     const { jsPDF } = window.jspdf;
