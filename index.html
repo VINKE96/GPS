@@ -9,8 +9,9 @@
 
   <!-- Librerías -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="script.js"></script>
 </head>
 <body>
 
@@ -43,13 +44,18 @@
   <form id="inspection-form"></form>
 
   <h2>Firma del Usuario</h2>
-  <canvas id="firma-canvas" width="300" height="150" style="border:1px solid #000; touch-action:none;"></canvas>
+  <canvas id="firma-canvas"
+  width="300"
+  height="150"
+  style="border:1px solid #000; touch-action:none; user-select:none; border-radius:6px;">
+  </canvas>
+
   <div>
-    <button type="button" id="clear-firma">Limpiar Firma</button>
+    <button id="clear-firma" type="button">🧹 Limpiar firma</button>
   </div>
 
   <h2>Fotos georreferenciadas</h2>
-  <video id="video" autoplay playsinline></video>
+  <video id="video" autoplay playsinline style="width:100%;max-width:400px;border:1px solid #333;border-radius:8px;"></video>
   <canvas id="canvas" style="display:none;"></canvas>
   <div>
     <button type="button" id="start-btn">Activar Cámara</button>
